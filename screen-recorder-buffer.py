@@ -21,11 +21,11 @@ CHUNK = 1024
 FORMAT = pyaudio.paInt16
 fourcc = cv2.VideoWriter_fourcc(*"XVID")
 frame_buffer = deque(maxlen=buffer_size_video)
-screen_size = audio_helper.get_screen_size()
+screen_size = helper.get_screen_size()
 
 #System audio
 system_audio = pyaudio.PyAudio()
-default_speakers = audio_helper.speakers(system_audio)
+default_speakers = helper.speakers(system_audio)
 samplerate_system = int(default_speakers["defaultSampleRate"])
 channels_system = default_speakers["maxInputChannels"]
 buffer_size_system = int(buffer_duration * samplerate_system / CHUNK)
@@ -40,7 +40,7 @@ system_stream = system_audio.open(format=FORMAT,
 
 #Microphone audio
 microphone_audio = pyaudio.PyAudio()
-default_mic = audio_helper.get_mic(microphone_audio)
+default_mic = helper.get_mic(microphone_audio)
 samplerate_mic = int(default_mic["defaultSampleRate"])
 channels_mic = default_mic["maxInputChannels"]
 buffer_size_mic = int(buffer_duration * samplerate_mic / CHUNK)
@@ -86,11 +86,6 @@ def record_screen():
 
 def record_audio_to_buffer():
     print(f"Recording from: ({default_speakers['index']}){default_speakers['name']}")
-    """
-    Opena PA stream via context manager.
-    After leaving the context, everything will
-    be correctly closed(Stream, PyAudio manager)            
-    """
     global stop_threads
     while not stop_threads:
         data = system_stream.read(CHUNK)
@@ -98,11 +93,6 @@ def record_audio_to_buffer():
 
 def record_mic_to_buffer():
     print(f"Recording from: ({default_speakers['index']}){default_speakers['name']}")
-    """
-    Opena PA stream via context manager.
-    After leaving the context, everything will
-    be correctly closed(Stream, PyAudio manager)            
-    """
     global stop_threads
     while not stop_threads:
         data = microphone_stream.read(CHUNK)

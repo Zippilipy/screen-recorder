@@ -75,14 +75,13 @@ def record_screen():
         frame_duration = 1/frame_rate
         global stop_threads
         while not stop_threads:
-            frame_start = time.time()
+            frame_start = time.perf_counter()
             img = np.array(sct.grab(monitor))
-            frame = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
-            frame_buffer.append(frame)
+            frame_buffer.append(img)
 
             # Sleep to maintain frame rate
-            elapsed = time.time() - frame_start
-            time.sleep(max(0, frame_duration - elapsed))
+            elapsed = time.perf_counter() - frame_start
+            time.sleep(max(0.0, frame_duration - elapsed))
 
 def record_audio_to_buffer():
     print(f"Recording from: ({default_speakers['index']}){default_speakers['name']}")
@@ -133,6 +132,9 @@ def save_mic(output_file):
 
     print(f"Buffered audio saved to {output_file}")
 
+def convert(img):
+    return cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+
 
 def save_last_minute(screen_size):
     print("Saving the last minute...")
@@ -142,6 +144,7 @@ def save_last_minute(screen_size):
 
     # Write frames from the buffer
     buffer_copy = list(frame_buffer)
+    buffer_copy = map(convert, buffer_copy)
     for frame in buffer_copy:
         out.write(frame)
 

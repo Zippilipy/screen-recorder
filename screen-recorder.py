@@ -79,7 +79,7 @@ def record_system_audio():
         wave_file.writeframes(in_data)
         return (in_data, pyaudio.paContinue)
 
-    with p.open(format=pyaudio.paInt16,
+    with p.open(format=FORMAT,
                 channels=default_speakers["maxInputChannels"],
                 rate=int(default_speakers["defaultSampleRate"]),
                 frames_per_buffer=CHUNK,
@@ -136,22 +136,23 @@ def merge_video_and_audio():
     audio = ffmpeg.input(combined_audio).audio
     ffmpeg.output(audio, video, final_output, y=final_output, vcodec='copy', acodec='copy').run()
 
-mic_thread = threading.Thread(target=record_microphone)
-system_thread = threading.Thread(target=record_system_audio)
-screen_thread = threading.Thread(target=record_screen)
+if __name__ == '__main__':
+    mic_thread = threading.Thread(target=record_microphone)
+    system_thread = threading.Thread(target=record_system_audio)
+    screen_thread = threading.Thread(target=record_screen)
 
-mic_thread.start()
-system_thread.start()
-screen_thread.start()
+    mic_thread.start()
+    system_thread.start()
+    screen_thread.start()
 
-mic_thread.join()
-system_thread.join()
-screen_thread.join()
+    mic_thread.join()
+    system_thread.join()
+    screen_thread.join()
 
-merge_audio()
-merge_video_and_audio()
+    merge_audio()
+    merge_video_and_audio()
 
-os.remove(mic_output)
-os.remove(system_output)
-os.remove(screen_output)
-os.remove(combined_audio)
+    os.remove(mic_output)
+    os.remove(system_output)
+    os.remove(screen_output)
+    os.remove(combined_audio)

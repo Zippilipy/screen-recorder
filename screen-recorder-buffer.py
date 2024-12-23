@@ -15,6 +15,7 @@ import helper
 
 #Screen record
 frame_rate = 30
+#TODO FRAME RATE CANNOT BE CONSTANT; FRAMERATE HAS TO BE A VARIABLE OF THE COMPUTERS SPEED!!!!!!!
 buffer_duration = 60
 buffer_size_video = frame_rate * buffer_duration
 CHUNK = 1024

@@ -14,11 +14,11 @@ from pydub import AudioSegment
 import helper
 
 #Screen record
-frame_rate = 30
+frame_rate = 60
 #TODO FRAME RATE CANNOT BE CONSTANT; FRAMERATE HAS TO BE A VARIABLE OF THE COMPUTERS SPEED!!!!!!!
 buffer_duration = 60
 buffer_size_video = frame_rate * buffer_duration
-CHUNK = 1024
+CHUNK = 2048
 FORMAT = pyaudio.paInt16
 fourcc = cv2.VideoWriter_fourcc(*"XVID")
 frame_buffer = deque(maxlen=buffer_size_video)
@@ -164,23 +164,32 @@ def merge_video_and_audio():
     audio = ffmpeg.input(combined_output).audio
     ffmpeg.output(audio, video, final_output, y=final_output, vcodec='copy', acodec='copy').run()
 
+def update_framerate():
+    global frame_rate
+    global frame_buffer
+    global buffer_size_video
+    l1 = len(frame_buffer)
+    time.sleep(1)
+    frame_rate = len(frame_buffer) - l1
+    buffer_size_video = frame_rate * buffer_duration
+    frame_buffer = deque(frame_buffer, maxlen=buffer_size_video)
 
 if __name__ == '__main__':
     system_thread = threading.Thread(target=record_audio_to_buffer)
     screen_thread = threading.Thread(target=record_screen)
     mic_thread = threading.Thread(target=record_mic_to_buffer)
+    framerate_thread = threading.Thread(target=update_framerate)
 
     try:
-
         system_thread.start()
         screen_thread.start()
         mic_thread.start()
+        framerate_thread.start()
 
         while not stop_threads:
             if keyboard.is_pressed('p'):
-                print(len(frame_buffer))
-                print(len(mic_buffer))
-                print(len(buffer_system))
+                print(frame_rate)
+                print(buffer_size_video)
             elif keyboard.is_pressed('s'):
                 save_audio(system_output)
                 save_mic(mic_output)
@@ -198,6 +207,7 @@ if __name__ == '__main__':
         system_thread.join()
         screen_thread.join()
         mic_thread.join()
+        framerate_thread.join()
 
         system_stream.stop_stream()
         system_stream.close()

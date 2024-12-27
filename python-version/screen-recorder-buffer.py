@@ -6,23 +6,30 @@ import wave
 import cv2
 import ffmpeg
 import numpy as np
-import mss
+import bettercam
 from collections import deque
 import keyboard
 import pyaudiowpatch as pyaudio
 from pydub import AudioSegment
 import helper
 
+#Threading
+buffer_lock = threading.Lock()
+stop_event = threading.Event()
+
 #Screen record
-frame_rate = 60
-#TODO FRAME RATE CANNOT BE CONSTANT; FRAMERATE HAS TO BE A VARIABLE OF THE COMPUTERS SPEED!!!!!!!
+frame_rate = 30
 buffer_duration = 60
 buffer_size_video = frame_rate * buffer_duration
-CHUNK = 4096
-FORMAT = pyaudio.paInt16
 fourcc = cv2.VideoWriter_fourcc(*"XVID")
 frame_buffer = deque(maxlen=buffer_size_video)
-screen_size = helper.get_screen_size()
+camera = bettercam.create(output_color="BGR")
+camera.start(target_fps=30, video_mode=True)
+screen_size = (camera.width, camera.height)
+
+#Audio
+CHUNK = 4096
+FORMAT = pyaudio.paInt16
 
 #System audio
 system_audio = pyaudio.PyAudio()
@@ -63,25 +70,20 @@ combined_output = "combined.mp3"
 #Resulting file
 final_output = "final.mp4"
 
-global stop_threads
-
 def record_screen():
     print("Recording... Press 'q' to quit or 's' to save the last minute.")
-
-    with mss.mss() as sct:
-        monitor = sct.monitors[1]
-        while not stop_threads:
-            frame_buffer.append(sct.grab(monitor))
+    while not stop_event.is_set():
+        frame_buffer.append(camera.get_latest_frame())
 
 def record_audio_to_buffer():
     print(f"Recording from: ({default_speakers['index']}){default_speakers['name']}")
-    while not stop_threads:
+    while not stop_event.is_set():
         data = system_stream.read(CHUNK)
         buffer_system.append(data)
 
 def record_mic_to_buffer():
     print(f"Recording from: ({default_mic['index']}){default_mic['name']}")
-    while not stop_threads:
+    while not stop_event.is_set():
         data = microphone_stream.read(CHUNK)
         mic_buffer.append(data)
 
@@ -119,9 +121,6 @@ def save_mic(output_file):
 
     print(f"Buffered audio saved to {output_file}")
 
-def convert(img):
-    return cv2.cvtColor(np.array(img), cv2.COLOR_BGRA2BGR)
-
 
 def save_screen():
     print(f"Saving video to {screen_output}")
@@ -131,7 +130,6 @@ def save_screen():
 
     # Write frames from the buffer
     buffer_copy = list(frame_buffer)
-    buffer_copy = map(convert, buffer_copy)
     for frame in buffer_copy:
         out.write(frame)
     out.release()
@@ -160,7 +158,7 @@ def update_framerate():
     frame_buffer = deque(frame_buffer, maxlen=buffer_size_video)
 
 if __name__ == '__main__':
-    stop_threads = False
+    stop = False
     system_thread = threading.Thread(target=record_audio_to_buffer)
     screen_thread = threading.Thread(target=record_screen)
     mic_thread = threading.Thread(target=record_mic_to_buffer)
@@ -172,7 +170,7 @@ if __name__ == '__main__':
         mic_thread.start()
         framerate_thread.start()
 
-        while not stop_threads:
+        while not stop:
             if keyboard.is_pressed('p'):
                 print(frame_rate)
             elif keyboard.is_pressed('s'):
@@ -186,7 +184,8 @@ if __name__ == '__main__':
                 os.remove(mic_output)
                 os.remove(combined_output)
             elif keyboard.is_pressed('q'):
-                stop_threads = True
+                stop_event.set()
+                stop = True
 
     finally:
         system_thread.join()
@@ -201,3 +200,4 @@ if __name__ == '__main__':
         microphone_stream.close()
         microphone_audio.terminate()
         cv2.destroyAllWindows()
+        camera.stop()

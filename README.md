@@ -1,4 +1,4 @@
-# python-version
+# screen-recorder
 
 This is my attempt at a software akin to Shadowplay. It allows you to buffer the last minute or so, to save whenever you want to.
 

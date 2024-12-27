@@ -33,3 +33,10 @@ def get_mic(mic):
         print("Looks like WASAPI is not available on the system. Exiting...")
         exit()
     return mic.get_device_info_by_index(wasapi_info["defaultInputDevice"])
+
+def get_screen_size():
+    with mss.mss() as sct:
+        monitor = sct.monitors[1]
+        screen_width = monitor["width"]
+        screen_height = monitor["height"]
+        return screen_width, screen_height

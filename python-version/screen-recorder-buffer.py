@@ -12,6 +12,7 @@ import keyboard
 import pyaudiowpatch as pyaudio
 from pydub import AudioSegment
 import helper
+import bettercam
 
 #Screen record
 frame_rate = 60
@@ -22,7 +23,7 @@ CHUNK = 4096
 FORMAT = pyaudio.paInt16
 fourcc = cv2.VideoWriter_fourcc(*"XVID")
 frame_buffer = deque(maxlen=buffer_size_video)
-screen_size = helper.get_screen_size()
+camera = bettercam.create(max_buffer_len=buffer_size_video, output_color="BGR")
 
 #System audio
 system_audio = pyaudio.PyAudio()
@@ -66,12 +67,10 @@ final_output = "final.mp4"
 global stop_threads
 
 def record_screen():
-    print("Recording... Press 'q' to quit or 's' to save the last minute.")
-
-    with mss.mss() as sct:
-        monitor = sct.monitors[1]
-        while not stop_threads:
-            frame_buffer.append(sct.grab(monitor))
+    camera.start(target_fps=60)
+    while not stop_threads:
+        frame_buffer.append(camera.get_latest_frame())
+    camera.stop()
 
 def record_audio_to_buffer():
     print(f"Recording from: ({default_speakers['index']}){default_speakers['name']}")
@@ -84,6 +83,17 @@ def record_mic_to_buffer():
     while not stop_threads:
         data = microphone_stream.read(CHUNK)
         mic_buffer.append(data)
+
+def update_framerate():
+    global frame_buffer
+    global frame_rate
+    global buffer_size_video
+    while not stop_threads:
+        length = len(frame_buffer)
+        time.sleep(1)
+        frame_rate = len(frame_buffer) - length
+        buffer_size_video = frame_rate * buffer_duration
+        frame_buffer = deque(frame_buffer, maxlen=buffer_size_video)
 
 def save_audio(output_file):
     """Save the audio stored in the circular buffer to a WAV file."""
@@ -127,11 +137,12 @@ def save_screen():
     print(f"Saving video to {screen_output}")
 
     # Create a VideoWriter object
-    out = cv2.VideoWriter(screen_output, fourcc, frame_rate, screen_size)
+    out = cv2.VideoWriter(screen_output, fourcc, frame_rate, (camera.width, camera.height))
 
     # Write frames from the buffer
     buffer_copy = list(frame_buffer)
-    buffer_copy = map(convert, buffer_copy)
+    print(len(buffer_copy)/frame_rate)
+    #buffer_copy = map(convert, buffer_copy)
     for frame in buffer_copy:
         out.write(frame)
     out.release()
@@ -149,17 +160,8 @@ def merge_video_and_audio():
     audio = ffmpeg.input(combined_output).audio
     ffmpeg.output(audio, video, final_output, y=final_output, vcodec='copy', acodec='copy').run()
 
-def update_framerate():
-    global frame_rate
-    global frame_buffer
-    global buffer_size_video
-    l1 = len(frame_buffer)
-    time.sleep(1)
-    frame_rate = len(frame_buffer) - l1
-    buffer_size_video = frame_rate * buffer_duration
-    frame_buffer = deque(frame_buffer, maxlen=buffer_size_video)
-
 if __name__ == '__main__':
+    print("Recording... Press 'q' to quit, 's' to save the last minute or 'p' to display the current framerate")
     stop_threads = False
     system_thread = threading.Thread(target=record_audio_to_buffer)
     screen_thread = threading.Thread(target=record_screen)
@@ -182,7 +184,7 @@ if __name__ == '__main__':
                 merge_audio()
                 merge_video_and_audio()
                 os.remove(system_output)
-                os.remove(screen_output)
+                #os.remove(screen_output)
                 os.remove(mic_output)
                 os.remove(combined_output)
             elif keyboard.is_pressed('q'):
@@ -201,3 +203,4 @@ if __name__ == '__main__':
         microphone_stream.close()
         microphone_audio.terminate()
         cv2.destroyAllWindows()
+        camera.release()
